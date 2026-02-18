@@ -62,6 +62,7 @@ const RegisterPage = () => {
       setUser(data.registeredUser);
       setIsAuth(true);
     } catch (error: any) {
+      console.log(error);
       toast.error(error.response.data.message);
       setIsAuth(false);
     } finally {

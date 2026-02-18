@@ -11,7 +11,7 @@ export const connectKafka = async () => {
       clientId: "auth-service",
       brokers: [process.env.Kafka_Broker || "localhost:9092"],
     });
-cadtsev
+
     admin = kafka.admin();
     await admin.connect();
 

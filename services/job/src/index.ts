@@ -16,7 +16,7 @@ async function initDB() {
         CREATE TYPE job_type AS ENUM ('Full-time', 'Part-time', 'Contract', 'Internship');
         END IF;
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'work_location') THEN 
-        CREATE TYPE work_location AS ENUM 
+        CREATE TYPE work_location AS ENUM ('On-site', 'Remote', 'Hybrid');
         END IF;
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'application_status') THEN 
         CREATE TYPE application_status AS ENUM ('Submitted', 'Rejected', 'Hired');
@@ -86,4 +86,3 @@ initDB().then(() => {
   });
 });
  
-A

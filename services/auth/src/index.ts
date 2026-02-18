@@ -1,18 +1,16 @@
 import app from "./app.js";
 import dotenv from "dotenv";
 import { sql } from "./utils/db.js";
-import { createClient } from "redis";
+import { Redis } from "@upstash/redis";
 
 dotenv.config();
 
-export const redisClient = createClient({
-  url: process.env.Redis_url,
+export const redisClient = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-redisClient
-  .connect()
-  .then(() => console.log("connected to redis"))
-  .catch(console.error);
+console.log("✅ Connected to Upstash Redis");
 
 async function initDb() {
   try {

@@ -56,7 +56,7 @@ export const registerUser = TryCatch(async (req, res, next) => {
 
     registeredUser = user;
   }
-
+ console.log(registeredUser);
   const token = jwt.sign(
     { id: registeredUser?.user_id },
     process.env.JWT_SEC as string,
@@ -149,7 +149,7 @@ export const forgotPassword = TryCatch(async (req, res, next) => {
   const resetLink = `${process.env.Frontend_Url}/reset/${resetToken}`;
 
   await redisClient.set(`forgot:${email}`, resetToken, {
-    EX: 900,
+    ex: 900,
   });
 
   const message = {
