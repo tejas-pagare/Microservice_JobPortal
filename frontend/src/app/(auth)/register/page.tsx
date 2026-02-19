@@ -52,14 +52,14 @@ const RegisterPage = () => {
         formData
       );
 
-      toast.success(data.message);
+      toast.success((data as any).message);
 
-      Cookies.set("token", data.token, {
+      Cookies.set("token", (data as any).token, {
         expires: 15,
         secure: false,
         path: "/",
       });
-      setUser(data.registeredUser);
+      setUser((data as any).registeredUser);
       setIsAuth(true);
     } catch (error: any) {
       console.log(error);

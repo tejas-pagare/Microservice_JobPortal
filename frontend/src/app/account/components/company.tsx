@@ -65,7 +65,7 @@ const Company = () => {
         },
       });
 
-      setCompanies(data);
+      setCompanies(data as any);
     } catch (error) {
       console.log(error);
     } finally {
@@ -96,7 +96,7 @@ const Company = () => {
           },
         }
       );
-      toast.success(data.message);
+      toast.success((data as any).message);
       clearData();
       fetchCompanies();
     } catch (error: any) {
@@ -119,7 +119,7 @@ const Company = () => {
           }
         );
 
-        toast.success(data.message);
+        toast.success((data as any).message);
         fetchCompanies();
       } catch (error: any) {
         toast.error(error.response.data.message);

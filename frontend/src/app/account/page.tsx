@@ -7,6 +7,8 @@ import Skills from "./components/skills";
 import Company from "./components/company";
 import { useRouter } from "next/navigation";
 import AppliedJobs from "./components/appliedJobs";
+import MyBlogs from "./components/MyBlogs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const AccountPage = () => {
   const { isAuth, user, loading, applications } = useAppData();
@@ -31,7 +33,22 @@ const AccountPage = () => {
           {user.role === "jobseeker" && (
             <AppliedJobs applications={applications} />
           )}
-          {user.role === "recruiter" && <Company />}
+          {user.role === "recruiter" && (
+            <div className="mt-6">
+              <Tabs defaultValue="companies" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="companies">My Companies</TabsTrigger>
+                  <TabsTrigger value="blogs">My Blogs</TabsTrigger>
+                </TabsList>
+                <TabsContent value="companies">
+                  <Company />
+                </TabsContent>
+                <TabsContent value="blogs">
+                  <MyBlogs />
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </div>
       )}
     </>

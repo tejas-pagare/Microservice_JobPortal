@@ -34,14 +34,14 @@ const LoginPage = () => {
         password,
       });
 
-      toast.success(data.message);
+      toast.success((data as any).message);
 
-      Cookies.set("token", data.token, {
+      Cookies.set("token", (data as any).token, {
         expires: 15,
         secure: false,
         path: "/",
       });
-      setUser(data.userObject);
+      setUser((data as any).userObject);
       setIsAuth(true);
       fetchApplications();
     } catch (error: any) {

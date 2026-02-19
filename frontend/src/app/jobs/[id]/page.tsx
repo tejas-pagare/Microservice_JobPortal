@@ -46,7 +46,7 @@ const JobPage = () => {
   async function fetchSingleJob() {
     try {
       const { data } = await axios.get(`${job_service}/api/job/${id}`);
-      setJob(data);
+      setJob(data as any);
     } catch (error) {
       console.log(error);
     } finally {
@@ -136,11 +136,10 @@ const JobPage = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
                         <span
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-                            job.is_active
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium ${job.is_active
                               ? "bg-green-100 dark:bg-green-900/30 text-green-600"
                               : "bg-red-100 dark:bg-red-900/30 text-red-600"
-                          }`}
+                            }`}
                         >
                           {job.is_active ? "Open" : "Closed"}
                         </span>
@@ -275,13 +274,12 @@ const JobPage = () => {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          e.status === "Hired"
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${e.status === "Hired"
                             ? "bg-green-100 dark:bg-green-900/30 text-green-600"
                             : e.status === "Rejected"
-                            ? "bg-red-100 dark:bg-red-900/30 text-red-600"
-                            : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600"
-                        }`}
+                              ? "bg-red-100 dark:bg-red-900/30 text-red-600"
+                              : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600"
+                          }`}
                       >
                         {e.status}
                       </span>

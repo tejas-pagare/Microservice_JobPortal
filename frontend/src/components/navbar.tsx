@@ -2,7 +2,7 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { Button } from "./ui/button";
-import { Briefcase, Home, Info, LogOut, Menu, User, X } from "lucide-react";
+import { BookOpen, Briefcase, Home, Info, LogOut, Menu, PenTool, User, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { ModeToggle } from "./mode-toggle";
@@ -55,6 +55,28 @@ const NavBar = () => {
                 <Briefcase size={16} /> Jobs
               </Button>
             </Link>
+
+
+
+            <Link href={"/blog"}>
+              <Button
+                variant={"ghost"}
+                className="flex items-center gap-2 font-medium"
+              >
+                <BookOpen size={16} /> Blogs
+              </Button>
+            </Link>
+
+            {isAuth && user?.role === "recruiter" && (
+              <Link href={"/recruiter/blog/create"}>
+                <Button
+                  variant={"ghost"}
+                  className="flex items-center gap-2 font-medium"
+                >
+                  <PenTool size={16} /> Post Blog
+                </Button>
+              </Link>
+            )}
 
             <Link href={"/about"}>
               <Button
@@ -147,9 +169,8 @@ const NavBar = () => {
 
       {/* mobile view */}
       <div
-        className={`md:hidden border-t overflow-hidden transition-all duration-300 ease-in-out ${
-          isOpen ? "max-96 opacity-100" : "max-h-0 opacity-0"
-        }`}
+        className={`md:hidden border-t overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-96 opacity-100" : "max-h-0 opacity-0"
+          }`}
       >
         <div className="px-3 py-3 space-y-1 bg-background/95 backdrop-blur-md">
           {/* isauth or user */}
@@ -171,6 +192,26 @@ const NavBar = () => {
             </Button>
           </Link>
 
+          <Link href={"/blog"} onClick={toggleMenu}>
+            <Button
+              variant={"ghost"}
+              className="w-full justify-start gap-3 h-11"
+            >
+              <BookOpen size={18} /> Blogs
+            </Button>
+          </Link>
+
+          {isAuth && user?.role === "recruiter" && (
+            <Link href={"/recruiter/blog/create"} onClick={toggleMenu}>
+              <Button
+                variant={"ghost"}
+                className="w-full justify-start gap-3 h-11"
+              >
+                <PenTool size={18} /> Post Blog
+              </Button>
+            </Link>
+          )}
+
           <Link href={"/about"} onClick={toggleMenu}>
             <Button
               variant={"ghost"}
@@ -182,7 +223,7 @@ const NavBar = () => {
 
           {isAuth ? (
             <>
-              <Link href={"/about"} onClick={toggleMenu}>
+              <Link href={"/account"} onClick={toggleMenu}>
                 <Button
                   variant={"ghost"}
                   className="w-full justify-start gap-3 h-11"
@@ -207,8 +248,7 @@ const NavBar = () => {
                 <User size={18} /> SignIn
               </Button>
             </Link>
-          )}
-        </div>
+          )}    </div>
       </div>
     </nav>
   );
