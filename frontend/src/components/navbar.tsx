@@ -2,17 +2,19 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { Button } from "./ui/button";
-import { BookOpen, Briefcase, Home, Info, LogOut, Menu, PenTool, User, X } from "lucide-react";
+import { BookOpen, Briefcase, Home, Info, LogOut, Menu, MessageSquare, PenTool, User, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { ModeToggle } from "./mode-toggle";
 import { useAppData } from "@/context/AppContext";
+import { useSocket } from "@/context/SocketContext";
 
 const NavBar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const { isAuth, user, setIsAuth, setUser, loading, logoutUser } =
     useAppData();
+  const { unreadCount } = useSocket();
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -74,6 +76,22 @@ const NavBar = () => {
                   className="flex items-center gap-2 font-medium"
                 >
                   <PenTool size={16} /> Post Blog
+                </Button>
+              </Link>
+            )}
+
+            {isAuth && (
+              <Link href={"/chat"}>
+                <Button
+                  variant={"ghost"}
+                  className="flex items-center gap-2 font-medium relative"
+                >
+                  <MessageSquare size={16} /> Chat
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
                 </Button>
               </Link>
             )}
@@ -208,6 +226,22 @@ const NavBar = () => {
                 className="w-full justify-start gap-3 h-11"
               >
                 <PenTool size={18} /> Post Blog
+              </Button>
+            </Link>
+          )}
+
+          {isAuth && (
+            <Link href={"/chat"} onClick={toggleMenu}>
+              <Button
+                variant={"ghost"}
+                className="w-full justify-start gap-3 h-11 relative"
+              >
+                <MessageSquare size={18} /> Chat
+                {unreadCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </Button>
             </Link>
           )}

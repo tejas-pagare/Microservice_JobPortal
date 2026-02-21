@@ -6,7 +6,7 @@ import postRoutes from "./routes/post.routes.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5004; // Ensure port doesn't conflict. User=5001, Job=5002, Payment=5003?
+const PORT = process.env.PORT || 5006;
 
 app.use(cors({
     origin: "*",

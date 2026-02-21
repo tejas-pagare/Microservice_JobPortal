@@ -3,6 +3,7 @@ import { sql } from "../utils/db.js";
 import { CreatePostSchema, UpdatePostSchema } from "../models/post.model.js";
 import { AuthenticatedRequest } from "../middlewares/auth.js";
 import { ZodError } from "zod";
+import redisClient from "../lib/redis.js";
 
 // Helper to generate slug
 const generateSlug = (title: string) => {
@@ -43,6 +44,13 @@ export const createPost = async (req: AuthenticatedRequest, res: Response): Prom
       RETURNING *
     `;
 
+        // Invalidate caches
+        const keys = await redisClient.keys('blog:posts:all:*');
+        if (keys.length > 0) await redisClient.del(keys);
+
+        const userKeys = await redisClient.keys(`blog:user:${user.user_id}:posts:*`);
+        if (userKeys.length > 0) await redisClient.del(userKeys);
+
         res.status(201).json({ message: "Post created successfully", post: result[0] });
     } catch (error) {
         console.error("Create Post Error:", error);
@@ -55,50 +63,51 @@ export const getAllPosts = async (req: Request, res: Response): Promise<void> =>
         const { page = 1, limit = 10, search, tag } = req.query;
         const offset = (Number(page) - 1) * Number(limit);
 
+        const cacheKey = `blog:posts:all:${JSON.stringify(req.query)}`;
+        const cachedData = await redisClient.get(cacheKey);
+
+        if (cachedData) {
+            res.status(200).json(JSON.parse(cachedData));
+            return;
+        }
+
         let query = sql`SELECT * FROM blog_posts WHERE 1=1`;
         let countQuery = sql`SELECT COUNT(*) FROM blog_posts WHERE 1=1`;
+        let posts;
+        let total;
 
         if (search) {
-            // Simple search implementation
-            // Use SQL template literal composition if search is present
-            // For now, let's skip complex dynamic query building with raw neon sql tag unless careful
-            // A safe way with neon:
-            const posts = await sql`
+            posts = await sql`
         SELECT * FROM blog_posts 
         WHERE (${search}::text IS NULL OR title ILIKE ${'%' + search + '%'})
         AND (${tag}::text IS NULL OR ${tag} = ANY(tags))
         ORDER BY created_at DESC
         LIMIT ${Number(limit)} OFFSET ${offset}
       `;
-            const total = await sql`
+            total = await sql`
         SELECT COUNT(*) FROM blog_posts 
         WHERE (${search}::text IS NULL OR title ILIKE ${'%' + search + '%'})
         AND (${tag}::text IS NULL OR ${tag} = ANY(tags))
       `;
-
-            res.status(200).json({
-                posts,
-                total: total[0].count,
-                page: Number(page),
-                limit: Number(limit)
-            });
-            return;
-        }
-
-        // Default fetch
-        const posts = await sql`
+        } else {
+            posts = await sql`
       SELECT * FROM blog_posts 
       ORDER BY created_at DESC
       LIMIT ${Number(limit)} OFFSET ${offset}
     `;
-        const total = await sql`SELECT COUNT(*) FROM blog_posts`;
+            total = await sql`SELECT COUNT(*) FROM blog_posts`;
+        }
 
-        res.status(200).json({
+        const response = {
             posts,
             total: total[0].count,
             page: Number(page),
             limit: Number(limit)
-        });
+        };
+
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(response));
+
+        res.status(200).json(response);
     } catch (error) {
         console.error("Get All Posts Error:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -110,6 +119,14 @@ export const getPostBySlug = async (req: Request, res: Response): Promise<void> 
         const { slug } = req.params; // Treat ID param as slug or create dedicated endpoint
         // Assuming /:idOrSlug
 
+        const cacheKey = `blog:post:${slug}`;
+        const cachedData = await redisClient.get(cacheKey);
+
+        if (cachedData) {
+            res.status(200).json(JSON.parse(cachedData));
+            return;
+        }
+
         // Check if UUID or Slug. Actually let's assume slug for public URL.
         const result = await sql`SELECT * FROM blog_posts WHERE slug = ${slug} OR id::text = ${slug}`;
 
@@ -117,6 +134,8 @@ export const getPostBySlug = async (req: Request, res: Response): Promise<void> 
             res.status(404).json({ message: "Post not found" });
             return;
         }
+
+        await redisClient.setEx(cacheKey, 86400, JSON.stringify(result[0]));
 
         // Fetch author details if needed (optional join)
         // For now returning raw post
@@ -131,6 +150,10 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response): Prom
     try {
         const { id } = req.params;
         const user = req.user;
+        if (!user) {
+            res.status(401).json({ message: "Unauthorized" });
+            return;
+        }
 
         // functionality to verify ownership
         const existing = await sql`SELECT author_id FROM blog_posts WHERE id = ${id}`;
@@ -164,6 +187,20 @@ export const updatePost = async (req: AuthenticatedRequest, res: Response): Prom
         RETURNING *
      `;
 
+        // Invalidate specific post cache
+        await redisClient.del(`blog:post:${result[0].slug}`);
+        // If slug changed, invalidate old slug too? For simplicity, we assume slug is primary key for cache
+        if (existing[0].slug && existing[0].slug !== result[0].slug) {
+            await redisClient.del(`blog:post:${existing[0].slug}`);
+        }
+
+        // Invalidate lists
+        const keys = await redisClient.keys('blog:posts:all:*');
+        if (keys.length > 0) await redisClient.del(keys);
+
+        const userKeys = await redisClient.keys(`blog:user:${user.user_id}:posts:*`);
+        if (userKeys.length > 0) await redisClient.del(userKeys);
+
         res.status(200).json({ message: "Post updated", post: result[0] });
     } catch (error) {
         console.error("Update Post Error:", error);
@@ -175,6 +212,10 @@ export const deletePost = async (req: AuthenticatedRequest, res: Response): Prom
     try {
         const { id } = req.params;
         const user = req.user;
+        if (!user) {
+            res.status(401).json({ message: "Unauthorized" });
+            return;
+        }
 
         const existing = await sql`SELECT author_id FROM blog_posts WHERE id = ${id}`;
         if (existing.length === 0) {
@@ -187,7 +228,19 @@ export const deletePost = async (req: AuthenticatedRequest, res: Response): Prom
             return;
         }
 
-        await sql`DELETE FROM blog_posts WHERE id = ${id}`;
+        const deletedPost = await sql`DELETE FROM blog_posts WHERE id = ${id} RETURNING slug`;
+
+        if (deletedPost.length > 0) {
+            await redisClient.del(`blog:post:${deletedPost[0].slug}`);
+        }
+
+        // Invalidate lists
+        const keys = await redisClient.keys('blog:posts:all:*');
+        if (keys.length > 0) await redisClient.del(keys);
+
+        const userKeys = await redisClient.keys(`blog:user:${user.user_id}:posts:*`);
+        if (userKeys.length > 0) await redisClient.del(userKeys);
+
         res.status(200).json({ message: "Post deleted successfully" });
     } catch (error) {
         console.error("Delete Post Error:", error);
@@ -206,6 +259,14 @@ export const getMyPosts = async (req: AuthenticatedRequest, res: Response): Prom
         const { page = 1, limit = 10 } = req.query;
         const offset = (Number(page) - 1) * Number(limit);
 
+        const cacheKey = `blog:user:${user.user_id}:posts:${JSON.stringify(req.query)}`;
+        const cachedData = await redisClient.get(cacheKey);
+
+        if (cachedData) {
+            res.status(200).json(JSON.parse(cachedData));
+            return;
+        }
+
         const posts = await sql`
             SELECT * FROM blog_posts 
             WHERE author_id = ${user.user_id} 
@@ -218,12 +279,16 @@ export const getMyPosts = async (req: AuthenticatedRequest, res: Response): Prom
             WHERE author_id = ${user.user_id}
         `;
 
-        res.status(200).json({
+        const response = {
             posts,
             total: total[0].count,
             page: Number(page),
             limit: Number(limit)
-        });
+        };
+
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(response));
+
+        res.status(200).json(response);
     } catch (error) {
         console.error("Get My Posts Error:", error);
         res.status(500).json({ message: "Internal Server Error" });

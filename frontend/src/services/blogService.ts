@@ -1,7 +1,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 
-const API_URL = "http://localhost:5004/api/blog";
+const API_URL = "http://localhost:5006/api/blog";
 
 const getAuthHeaders = () => {
     const token = Cookies.get("token");
