@@ -87,7 +87,7 @@ const Info: React.FC<AccontProps> = ({ user, isYourAccount }) => {
   const router = useRouter();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="w-full mx-auto px-4 py-8">
       <Card className="overflow-hidden shadow-lg border-2">
         <div className="h-32 bg-blue-500 relative">
           <div className="absolute -bottom-16 left-8">

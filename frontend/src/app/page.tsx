@@ -3,13 +3,18 @@ import CarrerGuide from "@/components/carrer-guide";
 import Hero from "@/components/hero";
 import Loading from "@/components/loading";
 import ResumeAnalyzer from "@/components/resume-analyser";
-import { Button } from "@/components/ui/button";
+import RecruiterLandingPage from "@/components/recruiter/RecruiterLandingPage";
 import { useAppData } from "@/context/AppContext";
 import React from "react";
 
 const Home = () => {
-  const { loading } = useAppData();
+  const { loading, user, isAuth } = useAppData();
   if (loading) return <Loading />;
+
+  if (isAuth && user?.role === "recruiter") {
+    return <RecruiterLandingPage />;
+  }
+
   return (
     <div>
       <Hero />
@@ -20,3 +25,4 @@ const Home = () => {
 };
 
 export default Home;
+
