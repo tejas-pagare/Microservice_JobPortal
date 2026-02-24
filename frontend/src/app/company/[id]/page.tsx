@@ -59,7 +59,7 @@ const CompanyPage = () => {
     try {
       setLoading(true);
       const { data } = await axios.get(`${job_service}/api/job/company/${id}`);
-      setCompany(data);
+      setCompany(data as any);
     } catch (error) {
       console.log(error);
     } finally {
@@ -473,11 +473,10 @@ const CompanyPage = () => {
                               </h3>
 
                               <span
-                                className={`text-xs px-3 py-1 rounded-full flex items-center gap-1 ${
-                                  j.is_active
+                                className={`text-xs px-3 py-1 rounded-full flex items-center gap-1 ${j.is_active
                                     ? "bg-green-100 dark:bg-green-900/30 text-green-600"
                                     : "bg-gray-100 dark:bg-gray-800 text-gray-600"
-                                }`}
+                                  }`}
                               >
                                 {j.is_active ? (
                                   <CheckCircle size={14} />

@@ -24,7 +24,7 @@ const UserAccount = () => {
         },
       });
 
-      setUser(data);
+      setUser(data as any);
     } catch (error) {
       console.log(error);
     } finally {

@@ -142,3 +142,36 @@ export interface Application {
   job_salary: number;
   job_location: string;
 }
+
+// ── Chat Types ──
+
+export interface Conversation {
+  conversation_id: number;
+  application_id: number;
+  job_id: number;
+  applicant_id: number;
+  recruiter_id: number;
+  last_message_at: string;
+  created_at: string;
+  job_title: string;
+  company_name: string;
+  company_logo: string;
+  applicant_name: string;
+  applicant_pic: string | null;
+  recruiter_name: string;
+  recruiter_pic: string | null;
+  unread_count: number;
+  last_message: string | null;
+}
+
+export interface Message {
+  message_id: number;
+  conversation_id: number;
+  sender_id: number;
+  content: string;
+  message_type: "text" | "file" | "image";
+  is_read: boolean;
+  created_at: string;
+  sender_name: string;
+  sender_pic: string | null;
+}

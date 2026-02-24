@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   DollarSign,
   MapPin,
+  MessageSquare,
   Users,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -19,6 +20,9 @@ import React, { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import Link from "next/link";
+
+const chat_service =
+  process.env.NEXT_PUBLIC_CHAT_SERVICE || "http://localhost:5007";
 
 const JobPage = () => {
   const { id } = useParams();
@@ -46,7 +50,7 @@ const JobPage = () => {
   async function fetchSingleJob() {
     try {
       const { data } = await axios.get(`${job_service}/api/job/${id}`);
-      setJob(data);
+      setJob(data as any);
     } catch (error) {
       console.log(error);
     } finally {
@@ -73,7 +77,7 @@ const JobPage = () => {
         }
       );
 
-      setJobApplications(data);
+      setJobApplications(data as Application[]);
     } catch (error) {
       console.log(error);
     }
@@ -93,6 +97,23 @@ const JobPage = () => {
       : jobApplications.filter((app) => app.status === filterStatus);
 
   const [value, setValue] = useState("");
+  const [chatLoading, setChatLoading] = useState<number | null>(null);
+
+  const startChatWithApplicant = async (applicationId: number) => {
+    setChatLoading(applicationId);
+    try {
+      const { data } = await axios.post<{ message: string; conversation: { conversation_id: number } }>(
+        `${chat_service}/api/chat/conversations`,
+        { application_id: applicationId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      router.push(`/chat/${data.conversation.conversation_id}`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to start chat");
+    } finally {
+      setChatLoading(null);
+    }
+  };
 
   const updateApplicationHandler = async (id: number) => {
     if (value === "") return toast.error("Please give valid value");
@@ -108,7 +129,7 @@ const JobPage = () => {
         }
       );
 
-      toast.success(data.message);
+      toast.success((data as any).message);
       fetchJobApplications();
     } catch (error: any) {
       toast.error(error.response.data.message);
@@ -136,11 +157,10 @@ const JobPage = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
                         <span
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-                            job.is_active
-                              ? "bg-green-100 dark:bg-green-900/30 text-green-600"
-                              : "bg-red-100 dark:bg-red-900/30 text-red-600"
-                          }`}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium ${job.is_active
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-600"
+                            : "bg-red-100 dark:bg-red-900/30 text-red-600"
+                            }`}
                         >
                           {job.is_active ? "Open" : "Closed"}
                         </span>
@@ -275,19 +295,18 @@ const JobPage = () => {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          e.status === "Hired"
-                            ? "bg-green-100 dark:bg-green-900/30 text-green-600"
-                            : e.status === "Rejected"
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${e.status === "Hired"
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-600"
+                          : e.status === "Rejected"
                             ? "bg-red-100 dark:bg-red-900/30 text-red-600"
                             : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600"
-                        }`}
+                          }`}
                       >
                         {e.status}
                       </span>
                     </div>
 
-                    <div className="flex gap-3 mb-3">
+                    <div className="flex gap-3 mb-3 items-center">
                       <Link
                         target="_blank"
                         href={e.resume}
@@ -303,6 +322,17 @@ const JobPage = () => {
                       >
                         View Profile
                       </Link>
+
+                      <button
+                        onClick={() => startChatWithApplicant(e.application_id)}
+                        disabled={chatLoading === e.application_id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-all ml-auto"
+                      >
+                        <MessageSquare size={14} />
+                        {chatLoading === e.application_id
+                          ? "Opening..."
+                          : "Chat"}
+                      </button>
                     </div>
 
                     {/* update Status */}

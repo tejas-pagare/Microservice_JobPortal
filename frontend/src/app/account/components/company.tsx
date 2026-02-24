@@ -65,7 +65,7 @@ const Company = () => {
         },
       });
 
-      setCompanies(data);
+      setCompanies(data as any);
     } catch (error) {
       console.log(error);
     } finally {
@@ -96,7 +96,7 @@ const Company = () => {
           },
         }
       );
-      toast.success(data.message);
+      toast.success((data as any).message);
       clearData();
       fetchCompanies();
     } catch (error: any) {
@@ -119,7 +119,7 @@ const Company = () => {
           }
         );
 
-        toast.success(data.message);
+        toast.success((data as any).message);
         fetchCompanies();
       } catch (error: any) {
         toast.error(error.response.data.message);
@@ -135,7 +135,7 @@ const Company = () => {
 
   if (loading) return <Loading />;
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="w-full mx-auto px-4 py-6">
       <Card className="shadow-lg border-2 overflow-hidden">
         <div className="bg-blue-500 p-6 border-b">
           <div className="flex items-center justify-between flex-wrap gap-4">

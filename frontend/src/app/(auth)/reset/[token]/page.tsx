@@ -28,7 +28,7 @@ const ResetPage = () => {
         }
       );
 
-      toast.success(data.message);
+      toast.success((data as any).message);
       setPassword("");
     } catch (error: any) {
       toast.error(error.response.data.message);

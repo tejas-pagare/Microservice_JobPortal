@@ -7,16 +7,44 @@ import {
   Clock,
   DollarSign,
   Eye,
+  MessageSquare,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import React from "react";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import axios from "axios";
+import Cookies from "js-cookie";
+import toast from "react-hot-toast";
+
+const chat_service =
+  process.env.NEXT_PUBLIC_CHAT_SERVICE || "http://localhost:5007";
 
 interface AppliedJobsProps {
   applications: Application[];
 }
 
 const AppliedJobs: React.FC<AppliedJobsProps> = ({ applications }) => {
+  const router = useRouter();
+  const [chatLoading, setChatLoading] = useState<number | null>(null);
+  const token = Cookies.get("token");
+
+  const startChat = async (applicationId: number) => {
+    setChatLoading(applicationId);
+    try {
+      const { data } = await axios.post<{ message: string; conversation: { conversation_id: number } }>(
+        `${chat_service}/api/chat/conversations`,
+        { application_id: applicationId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      router.push(`/chat/${data.conversation.conversation_id}`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to start chat");
+    } finally {
+      setChatLoading(null);
+    }
+  };
+
   const getStatusConfig = (status: string) => {
     switch (status.toLowerCase()) {
       case "hired":
@@ -43,7 +71,7 @@ const AppliedJobs: React.FC<AppliedJobsProps> = ({ applications }) => {
     }
   };
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="w-full mx-auto px-4 py-6">
       <Card className="shadow-lg border-2 overflow-hidden">
         <div className="bg-blue-600 text-white p-6 border-b">
           <div className="flex items-center gap-3">
@@ -101,13 +129,27 @@ const AppliedJobs: React.FC<AppliedJobsProps> = ({ applications }) => {
                         </div>
                       </div>
 
-                      <Link
-                        href={`/jobs/${a.job_id}`}
-                        className="shrink-0 flex items-center justify-center gap-1.5"
-                      >
-                        <Eye size={16} />
-                        View Job
-                      </Link>
+                      <div className="shrink-0 flex items-center gap-3">
+                        {a.status !== "Rejected" && (
+                          <button
+                            onClick={() => startChat(a.application_id)}
+                            disabled={chatLoading === a.application_id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-all"
+                          >
+                            <MessageSquare size={14} />
+                            {chatLoading === a.application_id
+                              ? "Opening..."
+                              : "Chat"}
+                          </button>
+                        )}
+                        <Link
+                          href={`/jobs/${a.job_id}`}
+                          className="flex items-center justify-center gap-1.5"
+                        >
+                          <Eye size={16} />
+                          View Job
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 );
