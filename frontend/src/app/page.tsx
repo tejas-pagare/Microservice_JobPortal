@@ -1,9 +1,7 @@
 "use client";
-import CarrerGuide from "@/components/carrer-guide";
-import Hero from "@/components/hero";
 import Loading from "@/components/loading";
-import ResumeAnalyzer from "@/components/resume-analyser";
 import RecruiterLandingPage from "@/components/recruiter/RecruiterLandingPage";
+import JobSeekerLandingPage from "@/components/JobSeekerLandingPage";
 import { useAppData } from "@/context/AppContext";
 import React from "react";
 
@@ -15,14 +13,7 @@ const Home = () => {
     return <RecruiterLandingPage />;
   }
 
-  return (
-    <div>
-      <Hero />
-      <CarrerGuide />
-      <ResumeAnalyzer />
-    </div>
-  );
+  return <JobSeekerLandingPage />;
 };
 
 export default Home;
-

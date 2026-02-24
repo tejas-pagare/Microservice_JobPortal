@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import AppliedJobs from "./components/appliedJobs";
 import MyBlogs from "./components/MyBlogs";
 import Applicants from "./components/Applicants";
+import MyJobs from "./components/MyJobs";
 import {
   User,
   Building2,
@@ -46,6 +47,12 @@ const sidebarItems: SidebarItem[] = [
     id: "blogs",
     label: "My Blogs",
     icon: <FileText size={20} />,
+    roles: ["recruiter"],
+  },
+  {
+    id: "jobs",
+    label: "My Jobs",
+    icon: <Briefcase size={20} />,
     roles: ["recruiter"],
   },
   {
@@ -102,6 +109,8 @@ const AccountPage = () => {
         return <Company />;
       case "blogs":
         return <MyBlogs />;
+      case "jobs":
+        return <MyJobs onViewApplicants={() => setActiveTab("applicants")} />;
       case "applicants":
         return <Applicants />;
       case "skills":

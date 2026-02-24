@@ -1,15 +1,17 @@
 import React from "react";
+import Link from "next/link";
 
 interface BlogCardProps {
     image: string;
     category: string;
     title: string;
     date: string;
+    slug?: string;
 }
 
-const BlogCard: React.FC<BlogCardProps> = ({ image, category, title, date }) => {
-    return (
-        <div className="rl-card" style={{ overflow: "hidden" }}>
+const BlogCard: React.FC<BlogCardProps> = ({ image, category, title, date, slug }) => {
+    const card = (
+        <div className="rl-card" style={{ overflow: "hidden", cursor: slug ? "pointer" : "default" }}>
             <div style={{ overflow: "hidden", height: 180 }}>
                 <img
                     src={image}
@@ -57,6 +59,16 @@ const BlogCard: React.FC<BlogCardProps> = ({ image, category, title, date }) => 
             </div>
         </div>
     );
+
+    if (slug) {
+        return (
+            <Link href={`/blog/${slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+                {card}
+            </Link>
+        );
+    }
+
+    return card;
 };
 
 export default BlogCard;

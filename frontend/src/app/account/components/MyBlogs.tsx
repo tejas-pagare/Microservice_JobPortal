@@ -92,6 +92,7 @@ export default function MyBlogs() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead>Image</TableHead>
                                         <TableHead>Title</TableHead>
                                         <TableHead>Created At</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -100,6 +101,19 @@ export default function MyBlogs() {
                                 <TableBody>
                                     {posts.map((post) => (
                                         <TableRow key={post.id}>
+                                            <TableCell>
+                                                {post.cover_image ? (
+                                                    <img
+                                                        src={post.cover_image}
+                                                        alt={post.title}
+                                                        className="w-16 h-10 object-cover rounded"
+                                                    />
+                                                ) : (
+                                                    <div className="w-16 h-10 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">
+                                                        No img
+                                                    </div>
+                                                )}
+                                            </TableCell>
                                             <TableCell className="font-medium">
                                                 <Link href={`/blog/${post.slug || post.id}`} className="hover:underline text-blue-600">
                                                     {post.title}
