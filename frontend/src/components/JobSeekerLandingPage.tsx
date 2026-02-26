@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import axios from "axios";
+import { job_service } from "@/context/AppContext";
 import {
     Search,
     MapPin,
@@ -64,88 +66,7 @@ const categories = [
     },
 ];
 
-const featuredJobs = [
-    {
-        id: 1,
-        title: "Senior React Developer",
-        company: "TechNova Inc.",
-        location: "Bangalore, India",
-        salary: "₹18–25 LPA",
-        type: "Full-Time",
-        description: "Build scalable front-end applications using React, TypeScript and modern web technologies.",
-        logo: "https://ui-avatars.com/api/?name=TN&background=6366f1&color=fff&size=48&rounded=true",
-    },
-    {
-        id: 2,
-        title: "Product Marketing Manager",
-        company: "GrowthPulse",
-        location: "Mumbai, India",
-        salary: "₹14–20 LPA",
-        type: "Full-Time",
-        description: "Drive go-to-market strategy and lead product positioning for SaaS solutions.",
-        logo: "https://ui-avatars.com/api/?name=GP&background=22c55e&color=fff&size=48&rounded=true",
-    },
-    {
-        id: 3,
-        title: "UX/UI Designer",
-        company: "PixelCraft Studio",
-        location: "Hyderabad, India",
-        salary: "₹12–18 LPA",
-        type: "Full-Time",
-        description: "Design intuitive user experiences and pixel-perfect interfaces for web and mobile apps.",
-        logo: "https://ui-avatars.com/api/?name=PC&background=f59e0b&color=fff&size=48&rounded=true",
-    },
-    {
-        id: 4,
-        title: "Data Analyst",
-        company: "Insightify",
-        location: "Pune, India",
-        salary: "₹10–15 LPA",
-        type: "Remote",
-        description: "Analyze data trends and build dashboards to support business decision-making.",
-        logo: "https://ui-avatars.com/api/?name=IN&background=ef4444&color=fff&size=48&rounded=true",
-    },
-    {
-        id: 5,
-        title: "Financial Analyst",
-        company: "WealthBridge",
-        location: "Delhi NCR, India",
-        salary: "₹12–17 LPA",
-        type: "Full-Time",
-        description: "Perform financial modelling, forecasting and investment analysis for enterprise clients.",
-        logo: "https://ui-avatars.com/api/?name=WB&background=3b82f6&color=fff&size=48&rounded=true",
-    },
-    {
-        id: 6,
-        title: "DevOps Engineer",
-        company: "CloudShift Labs",
-        location: "Remote",
-        salary: "₹20–30 LPA",
-        type: "Remote",
-        description: "Manage CI/CD pipelines, cloud infrastructure and container orchestration at scale.",
-        logo: "https://ui-avatars.com/api/?name=CS&background=8b5cf6&color=fff&size=48&rounded=true",
-    },
-    {
-        id: 7,
-        title: "HR Business Partner",
-        company: "PeopleFirst Corp",
-        location: "Chennai, India",
-        salary: "₹10–14 LPA",
-        type: "Full-Time",
-        description: "Partner with leadership to drive talent strategy, engagement and organizational growth.",
-        logo: "https://ui-avatars.com/api/?name=PF&background=ec4899&color=fff&size=48&rounded=true",
-    },
-    {
-        id: 8,
-        title: "Content Strategist",
-        company: "MediaMinds",
-        location: "Bangalore, India",
-        salary: "₹8–13 LPA",
-        type: "Hybrid",
-        description: "Develop content strategies and editorial calendars to boost brand engagement and SEO.",
-        logo: "https://ui-avatars.com/api/?name=MM&background=14b8a6&color=fff&size=48&rounded=true",
-    },
-];
+
 
 
 
@@ -157,6 +78,38 @@ const JobSeekerLandingPage = () => {
     const [jobTitle, setJobTitle] = useState("");
     const [location, setLocation] = useState("");
     const [email, setEmail] = useState("");
+
+    interface Job {
+        job_id: number;
+        title: string;
+        description: string;
+        salary: string;
+        location: string;
+        job_type: string;
+        role: string;
+        work_location: string;
+        company_name: string;
+        company_logo: string;
+        company_id: number;
+    }
+
+    const [jobs, setJobs] = useState<Job[]>([]);
+    const [jobsLoading, setJobsLoading] = useState(true);
+
+    const fetchFeaturedJobs = useCallback(async () => {
+        try {
+            const res: any = await axios.get(`${job_service}/api/job/all`);
+            setJobs(res.data.slice(0, 6));
+        } catch (error) {
+            console.error("Error fetching featured jobs:", error);
+        } finally {
+            setJobsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchFeaturedJobs();
+    }, [fetchFeaturedJobs]);
 
     return (
         <div className="jobseeker-landing">
@@ -321,77 +274,96 @@ const JobSeekerLandingPage = () => {
                             Handpicked opportunities from top companies across India.
                         </p>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
-                        {featuredJobs.slice(0, 6).map((job) => (
-                            <div className="jl-card" key={job.id} style={{ padding: 22, display: "flex", flexDirection: "column" }}>
-                                {/* Company logo + name */}
-                                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                                    <img
-                                        src={job.logo}
-                                        alt={job.company}
-                                        style={{
-                                            width: 40,
-                                            height: 40,
-                                            borderRadius: 10,
-                                            objectFit: "cover",
-                                        }}
-                                    />
-                                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--jl-text-muted)" }}>
-                                        {job.company}
-                                    </span>
+                    <div className="jl-grid-3">
+                        {jobsLoading ? (
+                            Array.from({ length: 6 }).map((_, i) => (
+                                <div className="jl-card" key={i} style={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.5 }}>
+                                    <div className="animate-pulse" style={{ textAlign: "center" }}>
+                                        <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--jl-border)", margin: "0 auto 12px" }}></div>
+                                        <div style={{ width: 120, height: 16, borderRadius: 4, background: "var(--jl-border)", margin: "0 auto 8px" }}></div>
+                                        <div style={{ width: 80, height: 12, borderRadius: 4, background: "var(--jl-border)", margin: "0 auto" }}></div>
+                                    </div>
                                 </div>
-
-                                {/* Job title */}
-                                <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--jl-text)", lineHeight: 1.4, marginBottom: 8 }}>
-                                    {job.title}
-                                </h3>
-
-                                {/* Type badge */}
-                                <span
-                                    style={{
-                                        display: "inline-block",
-                                        width: "fit-content",
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        color: "var(--jl-chip-blue-text)",
-                                        background: "var(--jl-chip-blue-bg)",
-                                        padding: "4px 12px",
-                                        borderRadius: 6,
-                                        marginBottom: 12,
-                                    }}
-                                >
-                                    {job.type}
-                                </span>
-
-                                {/* Description */}
-                                <p
-                                    style={{
-                                        fontSize: 13,
-                                        lineHeight: 1.6,
-                                        color: "var(--jl-text-muted)",
-                                        marginBottom: 18,
-                                        flex: 1,
-                                    }}
-                                >
-                                    {job.description}
-                                </p>
-
-                                {/* Salary + Apply button row */}
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                        <DollarSign size={15} style={{ color: "var(--jl-success)" }} />
-                                        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--jl-success)" }}>
-                                            {job.salary}
+                            ))
+                        ) : jobs.length > 0 ? (
+                            jobs.map((job) => (
+                                <div className="jl-card" key={job.job_id} style={{ padding: 22, display: "flex", flexDirection: "column" }}>
+                                    {/* Company logo + name */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                                        <img
+                                            src={job.company_logo}
+                                            alt={job.company_name}
+                                            style={{
+                                                width: 40,
+                                                height: 40,
+                                                borderRadius: 10,
+                                                objectFit: "cover",
+                                            }}
+                                        />
+                                        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--jl-text-muted)" }}>
+                                            {job.company_name}
                                         </span>
                                     </div>
-                                    <Link href="/jobs">
-                                        <button className="jl-job-apply-btn">
-                                            Apply <ArrowRight size={14} />
-                                        </button>
-                                    </Link>
+
+                                    {/* Job title */}
+                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--jl-text)", lineHeight: 1.4, marginBottom: 8 }}>
+                                        {job.title}
+                                    </h3>
+
+                                    {/* Type badge */}
+                                    <span
+                                        style={{
+                                            display: "inline-block",
+                                            width: "fit-content",
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            color: "var(--jl-chip-blue-text)",
+                                            background: "var(--jl-chip-blue-bg)",
+                                            padding: "4px 12px",
+                                            borderRadius: 6,
+                                            marginBottom: 12,
+                                        }}
+                                    >
+                                        {job.job_type}
+                                    </span>
+
+                                    {/* Description */}
+                                    <p
+                                        style={{
+                                            fontSize: 13,
+                                            lineHeight: 1.6,
+                                            color: "var(--jl-text-muted)",
+                                            marginBottom: 20,
+                                            display: "-webkit-box",
+                                            WebkitLineClamp: 3,
+                                            WebkitBoxOrient: "vertical",
+                                            overflow: "hidden",
+                                        }}
+                                    >
+                                        {job.description}
+                                    </p>
+
+                                    {/* Footer: Location + Apply */}
+                                    <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 16, borderTop: "1px solid var(--jl-border)" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--jl-text-muted)", fontSize: 12 }}>
+                                            <MapPin size={14} />
+                                            <span>{job.location}</span>
+                                        </div>
+                                        <Link
+                                            href={`/jobs/${job.job_id}`}
+                                            className="jl-job-apply-btn"
+                                            style={{ textDecoration: "none" }}
+                                        >
+                                            View Details
+                                        </Link>
+                                    </div>
                                 </div>
+                            ))
+                        ) : (
+                            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px 0" }}>
+                                <p className="jl-body" style={{ color: "var(--jl-text-muted)" }}>No featured jobs available at the moment.</p>
                             </div>
-                        ))}
+                        )}
                     </div>
                     <div style={{ textAlign: "center", marginTop: 40 }}>
                         <Link href="/jobs">

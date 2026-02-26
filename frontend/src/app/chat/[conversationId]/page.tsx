@@ -19,7 +19,7 @@ const ChatConversationPage = () => {
     const conversationId = Number(params.conversationId);
 
     const { user } = useAppData();
-    const { socket, isConnected } = useSocket();
+    const { socket, isConnected, setUnreadCount, setActiveConversationId } = useSocket();
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
@@ -88,18 +88,34 @@ const ChatConversationPage = () => {
     useEffect(() => {
         if (!socket || !isConnected || !conversationId) return;
 
+        // Tell the context which conversation is active so notifications are suppressed for it
+        setActiveConversationId(conversationId);
+
         // Join conversation room
         socket.emit("join-conversation", { conversationId });
 
         // Mark messages as read via socket too
         socket.emit("mark-read", { conversationId });
 
-        // Listen for new messages
+        // Listen for new messages from the server.
+        // When a message arrives, replace the matching optimistic entry (same sender + content)
+        // with the server-confirmed version, or append if it's from the other person.
         const handleNewMessage = (message: Message) => {
             if (message.conversation_id === conversationId) {
                 setMessages((prev) => {
-                    // Avoid duplicates
-                    if (prev.some((m) => m.message_id === message.message_id)) return prev;
+                    // Check if a real (non-optimistic) duplicate already exists
+                    if (prev.some((m) => !m._isOptimistic && m.message_id === message.message_id)) {
+                        return prev;
+                    }
+                    // Replace the optimistic placeholder from the same sender with the same content
+                    const optimisticIndex = prev.findIndex(
+                        (m) => m._isOptimistic && m.sender_id === message.sender_id && m.content === message.content
+                    );
+                    if (optimisticIndex !== -1) {
+                        const updated = [...prev];
+                        updated[optimisticIndex] = message; // swap placeholder with real message
+                        return updated;
+                    }
                     return [...prev, message];
                 });
 
@@ -144,6 +160,8 @@ const ChatConversationPage = () => {
         socket.on("messages-read", handleMessagesRead);
 
         return () => {
+            // Clear active conversation so notifications resume for this conversation
+            setActiveConversationId(null);
             socket.emit("leave-conversation", { conversationId });
             socket.off("new-message", handleNewMessage);
             socket.off("user-typing", handleTyping);
@@ -156,10 +174,28 @@ const ChatConversationPage = () => {
     const handleSend = () => {
         if (!newMessage.trim() || !socket || sending) return;
 
-        setSending(true);
+        const trimmedContent = newMessage.trim();
+
+        // 1. Optimistically add the message to the UI immediately —
+        //    no waiting for the DB round-trip.
+        const optimisticMsg: Message = {
+            message_id: Date.now(), // temporary id; replaced when server echo arrives
+            conversation_id: conversationId,
+            sender_id: user!.user_id,
+            content: trimmedContent,
+            message_type: "text",
+            is_read: false,
+            created_at: new Date().toISOString(),
+            sender_name: user?.name || "",
+            sender_pic: null,
+            _isOptimistic: true,
+        };
+        setMessages((prev) => [...prev, optimisticMsg]);
+
+        // 2. Emit over socket — server saves to DB and broadcasts to the room.
         socket.emit("send-message", {
             conversationId,
-            content: newMessage.trim(),
+            content: trimmedContent,
             type: "text",
         });
 

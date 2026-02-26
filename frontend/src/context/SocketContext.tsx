@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import Cookies from "js-cookie";
 import axios from "axios";
@@ -13,6 +13,8 @@ interface SocketContextType {
     isConnected: boolean;
     unreadCount: number;
     setUnreadCount: React.Dispatch<React.SetStateAction<number>>;
+    /** Set this to the conversation the user is currently viewing so notifications are suppressed for it */
+    setActiveConversationId: (id: number | null) => void;
 }
 
 const SocketContext = createContext<SocketContextType>({
@@ -20,6 +22,7 @@ const SocketContext = createContext<SocketContextType>({
     isConnected: false,
     unreadCount: 0,
     setUnreadCount: () => { },
+    setActiveConversationId: () => { },
 });
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -28,6 +31,13 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+
+    // Ref so the socket event handler always has the latest value without re-registering listeners
+    const activeConversationIdRef = useRef<number | null>(null);
+
+    const setActiveConversationId = (id: number | null) => {
+        activeConversationIdRef.current = id;
+    };
 
     useEffect(() => {
         const token = Cookies.get("token");
@@ -61,9 +71,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
             setIsConnected(false);
         });
 
-        // Listen for new message notifications (for unread badge)
-        newSocket.on("new-message-notification", () => {
-            setUnreadCount((prev) => prev + 1);
+        // Only increment unread badge if the user is NOT currently viewing that conversation
+        newSocket.on("new-message-notification", (data: { conversationId: number }) => {
+            if (activeConversationIdRef.current !== data.conversationId) {
+                setUnreadCount((prev) => prev + 1);
+            }
         });
 
         // Send heartbeat every 4 minutes to keep online status alive
@@ -90,6 +102,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
                 isConnected,
                 unreadCount,
                 setUnreadCount,
+                setActiveConversationId,
             }}
         >
             {children}
@@ -98,4 +111,3 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 };
 
 export const useSocket = () => useContext(SocketContext);
-

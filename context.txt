@@ -1,0 +1,739 @@
+================================================================================
+                         JOB PORTAL — PROJECT CONTEXT
+================================================================================
+Author: Tejas Pagare
+Architecture: Microservices
+License: ISC
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+A full-stack job portal application ("HireHeaven") built with a microservices
+architecture. The platform connects job seekers and recruiters, offering job
+listings, company management, user profiles, real-time chat, blog publishing,
+subscription payments, AI-powered career guidance, and AI resume analysis.
+
+User Roles:
+  • Job Seeker  — Browse jobs, apply, manage profile/resume/skills, chat with
+                  recruiters, use AI career guide & resume analyzer, subscribe
+                  for premium features.
+  • Recruiter   — Create companies, post jobs, manage applicants (Hire/Reject),
+                  chat with applicants, publish blog posts.
+
+================================================================================
+2. TECH STACK
+================================================================================
+
+FRONTEND
+--------
+  • Next.js 16          — React framework with App Router
+  • React 19            — UI library
+  • TypeScript          — Type safety
+  • Tailwind CSS 4      — Utility-first styling
+  • Radix UI            — Accessible primitives (Avatar, Dialog, Dropdown,
+                          Label, Popover, Select, Slot)
+  • Tiptap              — Rich text editor (used for blog post creation/editing)
+  • Lucide React        — Icon library
+  • Axios               — HTTP client
+  • Socket.IO Client    — Real-time WebSocket communication
+  • js-cookie           — Client-side cookie management (auth tokens)
+  • React Hot Toast     — Toast notifications
+  • next-themes         — Dark/Light mode toggle
+  • class-variance-authority + tailwind-merge + clsx — Styling utilities (shadcn/ui pattern)
+
+BACKEND (shared across services)
+---------------------------------
+  • Node.js + Express 5  — API framework (ESM modules)
+  • TypeScript           — Type safety
+  • PostgreSQL (Neon Serverless) — Database via @neondatabase/serverless
+  • Redis / Upstash Redis — Caching & online presence tracking
+  • Apache Kafka (KafkaJS) — Async inter-service messaging (email notifications)
+  • JWT (jsonwebtoken)    — Stateless authentication
+  • bcrypt               — Password hashing
+  • Multer               — File upload middleware
+  • Cloudinary           — Cloud image/file storage
+  • Razorpay             — Payment gateway (Indian payment system)
+  • Google Gemini AI (@google/genai) — AI-powered career guidance & resume analysis
+  • Nodemailer           — Transactional emails (password reset, chat notifications)
+  • Zod                  — Input validation (blog service)
+  • concurrently + nodemon — Development tooling
+  • Docker               — Containerization (each service has a Dockerfile)
+
+================================================================================
+3. PROJECT STRUCTURE
+================================================================================
+
+job-portal/
+├── frontend/                       # Next.js 16 frontend (port 3000)
+│   ├── src/
+│   │   ├── app/                    # App Router pages
+│   │   │   ├── (auth)/             # Auth pages (login, register, forgot, reset)
+│   │   │   ├── about/              # About page
+│   │   │   ├── account/            # User account/profile management
+│   │   │   │   ├── [id]/           # View other user's profile
+│   │   │   │   ├── components/     # Profile components (skills, resume, etc.)
+│   │   │   │   └── page.tsx        # Current user profile (tabs: My Companies, My Blogs)
+│   │   │   ├── blog/               # Blog listing & individual post pages
+│   │   │   ├── chat/               # Real-time chat interface
+│   │   │   ├── company/            # Company detail pages
+│   │   │   ├── jobs/               # Job listing & job detail pages
+│   │   │   │   └── [id]/           # Individual job page
+│   │   │   ├── legal/              # Legal pages (terms, privacy, etc.)
+│   │   │   ├── payment/            # Payment success/failure pages
+│   │   │   ├── recruiter/          # Recruiter-specific pages
+│   │   │   │   └── blog/           # Blog creation/editing for recruiters
+│   │   │   ├── subscribe/          # Subscription/pricing page
+│   │   │   ├── layout.tsx          # Root layout (ThemeProvider, Navbar)
+│   │   │   ├── page.tsx            # Landing page
+│   │   │   └── globals.css         # Global styles + Tailwind
+│   │   ├── components/             # Reusable UI components
+│   │   │   ├── ui/                 # shadcn/ui primitives (Button, Card, Input, etc.)
+│   │   │   ├── blog/               # Blog-specific components (BlogCard, etc.)
+│   │   │   ├── recruiter/          # Recruiter landing page sections & cards
+│   │   │   ├── navbar.tsx          # Navigation bar
+│   │   │   ├── hero.tsx            # Hero section
+│   │   │   ├── job-card.tsx        # Job listing card
+│   │   │   ├── carrer-guide.tsx    # AI Career Guide component
+│   │   │   ├── resume-analyser.tsx # AI Resume Analyzer component
+│   │   │   ├── JobSeekerLandingPage.tsx  # Full job seeker landing page
+│   │   │   ├── mode-toggle.tsx     # Dark/Light theme toggle
+│   │   │   └── theme-provider.tsx  # Theme context provider
+│   │   ├── context/
+│   │   │   ├── AppContext.tsx      # Global app state (user, auth, skills, applications)
+│   │   │   └── SocketContext.tsx   # Socket.IO connection & real-time state
+│   │   ├── services/              # Frontend service layer
+│   │   ├── lib/                   # Utility functions (cn, etc.)
+│   │   └── type.ts                # TypeScript type definitions
+│   ├── public/                     # Static assets
+│   ├── Dockerfile                  # Frontend container
+│   └── package.json
+│
+├── services/                       # Backend microservices
+│   ├── auth/                      # Authentication Service (port 5001)
+│   ├── job/                       # Job & Company Service (port 5002)
+│   ├── user/                      # User Profile Service (port 5003)
+│   ├── payment/                   # Payment Service (port 5004)
+│   ├── utils/                     # Shared Utilities Service (port 5005)
+│   ├── blog/                      # Blog Service (port 5006)
+│   └── chat/                      # Chat Service (port 5007)
+│
+├── scripts/                       # Utility scripts
+├── .github/                       # GitHub Actions / CI config
+├── README.md                      # Project documentation
+└── .gitignore
+
+Service Internal Structure (common pattern):
+  services/<name>/
+  ├── src/
+  │   ├── index.ts              # Entry point (DB init, server start, Kafka connect)
+  │   ├── app.ts                # Express app setup (CORS, JSON, routes)
+  │   ├── routes/<name>.ts      # Route definitions
+  │   ├── controllers/<name>.ts # Request handlers / business logic
+  │   ├── middlewares/
+  │   │   ├── auth.ts           # JWT authentication middleware (isAuth)
+  │   │   └── multer.ts         # File upload middleware
+  │   ├── utils/
+  │   │   ├── db.ts             # Neon PostgreSQL connection
+  │   │   ├── redis.ts          # Redis client setup
+  │   │   ├── jwt.ts            # JWT token utilities
+  │   │   └── ...
+  │   ├── producer.ts           # Kafka producer (for sending email events)
+  │   └── templete.ts           # Email HTML templates
+  ├── Dockerfile
+  ├── package.json
+  └── tsconfig.json
+
+================================================================================
+4. MICROSERVICES — DETAILED BREAKDOWN
+================================================================================
+
+4.1  AUTH SERVICE (port 5001)
+─────────────────────────────
+Handles user registration, login, password recovery.
+Dependencies: Express 5, Neon DB, Redis/Upstash, bcrypt, JWT, KafkaJS, Multer
+
+Routes (prefix: /api/auth):
+  POST /register       — Register user (with profile pic upload via Multer → Cloudinary)
+  POST /login          — Login, returns JWT token
+  POST /forgot         — Send password reset email (via Kafka → Utils email consumer)
+  POST /reset/:token   — Reset password using token
+
+Key behaviors:
+  • Passwords hashed with bcrypt before storage
+  • JWT token generated on login, stored client-side in cookies
+  • Kafka producer publishes "send-mail" events for email delivery
+  • Redis used for caching/session management
+  • Profile picture uploaded to Cloudinary during registration
+
+─────────────────────────────
+4.2  JOB SERVICE (port 5002)
+─────────────────────────────
+Manages companies, job postings, and job applications.
+Dependencies: Express 5, Neon DB, JWT, KafkaJS, Multer
+
+Routes (prefix: /api/job):
+  POST   /company/new              — Create company (auth + logo upload)
+  DELETE /company/:companyId       — Delete company (auth)
+  GET    /company/all              — List all companies for authenticated recruiter
+  GET    /company/:id              — Get company details (public)
+  POST   /new                      — Create new job posting (auth, recruiter)
+  PUT    /:jobId                   — Update job posting (auth)
+  GET    /all                      — Get all active jobs (public)
+  GET    /:jobId                   — Get single job details (public)
+  GET    /application/:jobId       — Get all applications for a job (auth, recruiter)
+  PUT    /application/update/:id   — Update application status (auth, recruiter)
+
+Key behaviors:
+  • Recruiters create companies with logo upload (Cloudinary)
+  • Jobs are linked to companies and the posting recruiter
+  • Application status: "Submitted" → "Hired" or "Rejected"
+  • Kafka notifies applicants on status change (email via Utils consumer)
+  • Email templates for acceptance/rejection notifications
+
+─────────────────────────────
+4.3  USER SERVICE (port 5003)
+─────────────────────────────
+Manages user profiles, skills, resumes, and job applications.
+Dependencies: Express 5, Neon DB, JWT, Axios, Multer
+
+Routes (prefix: /api/user):
+  GET  /me                — Get current authenticated user profile
+  GET  /:userId           — Get another user's profile by ID (auth)
+  PUT  /update/profile    — Update user name, phone, bio (auth)
+  PUT  /update/pic        — Update profile picture (auth + Multer upload)
+  PUT  /update/resume     — Upload/update resume PDF (auth + Multer upload)
+  POST /skill/add         — Add skill to user's skill array (auth)
+  PUT  /skill/delete      — Remove skill from user's skill array (auth)
+  POST /apply/job         — Apply for a job (auth, job seeker only)
+  GET  /application/all   — Get all applications by current user (auth)
+
+Key behaviors:
+  • Files (profile pic, resume) uploaded via Multer → Cloudinary (via Utils service)
+  • Skills stored as a text array in PostgreSQL
+  • Applications track job_id, status, resume snapshot, and subscription status
+
+─────────────────────────────
+4.4  PAYMENT SERVICE (port 5004)
+─────────────────────────────
+Handles subscription payments via Razorpay.
+Dependencies: Express 5, Neon DB, JWT, Razorpay
+
+Routes (prefix: /api/payment):
+  POST /checkout  — Initiate Razorpay payment order (auth)
+  POST /verify    — Verify Razorpay payment signature + update subscription (auth)
+
+Key behaviors:
+  • Creates Razorpay order with plan amount
+  • Verifies payment signature (HMAC SHA256)
+  • Updates user's subscription status in database on successful payment
+  • Subscription grants premium features (e.g., priority applications)
+
+─────────────────────────────
+4.5  UTILS SERVICE (port 5005)
+─────────────────────────────
+Shared utility service for file uploads, AI features, and email delivery.
+Dependencies: Express 5, Cloudinary, Google GenAI, Nodemailer, KafkaJS
+
+Routes (prefix: /api):
+  POST /upload          — Upload file to Cloudinary (buffer + optional old public_id)
+  POST /career          — AI career guidance (Gemini 2.5 Flash) based on user skills
+  POST /resume-analyser — AI resume analysis (Gemini 2.5 Flash) — ATS score + suggestions
+
+Kafka Consumer:
+  • Listens on topic "send-mail"
+  • Sends transactional emails via Nodemailer (Gmail SMTP)
+  • Used for: password reset emails, application status notifications, chat offline notifications
+
+Key behaviors:
+  • Career guide: accepts skills string → returns structured JSON (summary, jobOptions,
+    skillsToLearn with categories, learningApproach)
+  • Resume analyzer: accepts PDF as base64 → returns ATS score (0-100), score breakdown
+    (formatting, keywords, structure, readability), suggestions, strengths, summary
+  • Cloudinary handles image/file upload with automatic old file cleanup
+
+─────────────────────────────
+4.6  BLOG SERVICE (port 5006)
+─────────────────────────────
+Blog publishing platform for recruiters.
+Dependencies: Express 5, Neon DB, JWT, Redis, Zod, Multer
+
+Routes (prefix: /api/blog):
+  GET    /                  — Get all blog posts (public, paginated)
+  GET    /:slug             — Get single blog post by slug (public)
+  POST   /                  — Create blog post (auth, recruiter only)
+  GET    /user/my-posts     — Get current recruiter's posts (auth, recruiter)
+  PUT    /:id               — Update blog post (auth, recruiter, owner only)
+  DELETE /:id               — Delete blog post (auth, recruiter, owner only)
+
+Database (blog_posts table):
+  id          SERIAL PRIMARY KEY
+  title       VARCHAR(255) NOT NULL
+  slug        VARCHAR(255) UNIQUE NOT NULL
+  author_id   INTEGER NOT NULL
+  cover_image VARCHAR(255)
+  tags        TEXT[]
+  sections    JSONB DEFAULT '[]'    — Rich content stored as JSON sections
+  created_at  TIMESTAMP
+  updated_at  TIMESTAMP
+
+Key behaviors:
+  • Slug auto-generated from title
+  • Blog content stored as JSONB sections (supports rich text via Tiptap editor)
+  • Redis caching for read operations (getAllPosts, getPostBySlug, getMyPosts)
+  • Cache invalidation on write operations (create, update, delete)
+  • Zod validation for input data
+  • Only recruiter role can create/edit/delete posts
+
+─────────────────────────────
+4.7  CHAT SERVICE (port 5007)
+─────────────────────────────
+Real-time messaging between recruiters and job applicants.
+Dependencies: Express 5, Neon DB, JWT, Socket.IO, Redis/Upstash, KafkaJS
+
+REST Routes (prefix: /api/chat):
+  GET  /conversations                          — List user's conversations
+  GET  /conversations/:conversationId/messages  — Get messages in a conversation
+  POST /conversations                          — Create or retrieve a conversation
+  PUT  /messages/read/:conversationId          — Mark messages as read
+  GET  /unread-count                           — Get total unread message count
+
+WebSocket Events (Socket.IO):
+  Authentication:
+    • JWT verified on handshake (socket.handshake.auth.token)
+    • User data attached to socket (userId, userName, email, role)
+
+  Client → Server:
+    join-conversation   { conversationId }   — Join a conversation room
+    leave-conversation  { conversationId }   — Leave a conversation room
+    send-message        { conversationId, content, type? }  — Send a message
+    typing              { conversationId }   — Typing indicator start
+    stop-typing         { conversationId }   — Typing indicator stop
+    mark-read           { conversationId }   — Mark messages as read
+    heartbeat           (no data)            — Refresh online presence in Redis
+
+  Server → Client:
+    new-message             — New message in a conversation
+    new-message-notification — Notification for recipient (unread badge)
+    user-typing             — Someone is typing
+    user-stop-typing        — Someone stopped typing
+    messages-read           — Messages were read by other party
+    user-online             — User came online
+    user-offline            — User went offline
+    error                   — Error message
+
+Database:
+  conversations table:
+    conversation_id  SERIAL PRIMARY KEY
+    application_id   INTEGER NOT NULL UNIQUE
+    applicant_id     INTEGER NOT NULL
+    recruiter_id     INTEGER NOT NULL
+    job_id           INTEGER NOT NULL
+    created_at       TIMESTAMPTZ
+    last_message_at  TIMESTAMPTZ
+
+  messages table:
+    message_id       SERIAL PRIMARY KEY
+    conversation_id  INTEGER NOT NULL (FK → conversations)
+    sender_id        INTEGER NOT NULL
+    content          TEXT NOT NULL
+    message_type     ENUM('text', 'file', 'image')
+    is_read          BOOLEAN DEFAULT false
+    created_at       TIMESTAMPTZ
+
+  Indexes:
+    idx_messages_conversation_id  — Faster message loading per conversation
+    idx_messages_unread           — Faster unread count queries
+
+Key behaviors:
+  • 1:1 conversations tied to a specific job application (unique per application_id)
+  • Online presence tracked in Redis (5-min TTL, refreshed by heartbeat)
+  • Offline users receive email notifications via Kafka → Utils email consumer
+  • Typing indicators broadcast in real-time
+  • Read receipts sync across clients
+  • Personal user rooms for cross-page notifications
+
+================================================================================
+5. DATABASE SCHEMA (PostgreSQL — Neon Serverless)
+================================================================================
+
+All services share the same Neon PostgreSQL database. Tables are auto-created
+on service startup via SQL in index.ts.
+
+USERS TABLE (managed by auth service):
+  user_id              SERIAL PRIMARY KEY
+  name                 VARCHAR NOT NULL
+  email                VARCHAR UNIQUE NOT NULL
+  password             VARCHAR NOT NULL (bcrypt hashed)
+  phone_number         VARCHAR
+  role                 VARCHAR ('jobseeker' | 'recruiter')
+  bio                  TEXT
+  resume               VARCHAR (Cloudinary URL)
+  resume_public_id     VARCHAR (Cloudinary public ID)
+  profile_pic          VARCHAR (Cloudinary URL)
+  profile_pic_public_id VARCHAR (Cloudinary public ID)
+  skills               TEXT[]
+  subscription         VARCHAR (null = free, else subscription plan)
+
+COMPANIES TABLE (managed by job service):
+  company_id           SERIAL PRIMARY KEY
+  name                 VARCHAR NOT NULL
+  description          TEXT
+  website              VARCHAR
+  logo                 VARCHAR (Cloudinary URL)
+  logo_public_id       VARCHAR
+  recruiter_id         INTEGER (FK → users)
+  created_at           TIMESTAMP
+
+JOBS TABLE (managed by job service):
+  job_id               SERIAL PRIMARY KEY
+  title                VARCHAR NOT NULL
+  description          TEXT
+  salary               INTEGER
+  location             VARCHAR
+  job_type             VARCHAR ('Full-time' | 'Part-time' | 'Contract' | 'Internship')
+  openings             INTEGER
+  role                 VARCHAR
+  work_location        VARCHAR ('On-site' | 'Remote' | 'Hybrid')
+  company_id           INTEGER (FK → companies)
+  company_name         VARCHAR
+  company_logo         VARCHAR
+  posted_by_recuriter_id INTEGER (FK → users)
+  created_at           TIMESTAMP
+  is_active            BOOLEAN
+
+APPLICATIONS TABLE (managed by user/job services):
+  application_id       SERIAL PRIMARY KEY
+  job_id               INTEGER (FK → jobs)
+  applicant_id         INTEGER (FK → users)
+  applicant_email      VARCHAR
+  status               VARCHAR ('Submitted' | 'Rejected' | 'Hired')
+  resume               VARCHAR (Cloudinary URL — snapshot at application time)
+  applied_at           TIMESTAMP
+  subscribed           BOOLEAN
+  job_title            VARCHAR
+  job_salary           INTEGER
+  job_location         VARCHAR
+
+BLOG_POSTS TABLE (managed by blog service):
+  id                   SERIAL PRIMARY KEY
+  title                VARCHAR(255) NOT NULL
+  slug                 VARCHAR(255) UNIQUE NOT NULL
+  author_id            INTEGER NOT NULL (FK → users)
+  cover_image          VARCHAR(255)
+  tags                 TEXT[]
+  sections             JSONB DEFAULT '[]'
+  created_at           TIMESTAMP
+  updated_at           TIMESTAMP
+
+CONVERSATIONS TABLE (managed by chat service):
+  conversation_id      SERIAL PRIMARY KEY
+  application_id       INTEGER NOT NULL UNIQUE
+  applicant_id         INTEGER NOT NULL
+  recruiter_id         INTEGER NOT NULL
+  job_id               INTEGER NOT NULL
+  created_at           TIMESTAMPTZ
+  last_message_at      TIMESTAMPTZ
+
+MESSAGES TABLE (managed by chat service):
+  message_id           SERIAL PRIMARY KEY
+  conversation_id      INTEGER NOT NULL (FK → conversations, CASCADE DELETE)
+  sender_id            INTEGER NOT NULL
+  content              TEXT NOT NULL
+  message_type         message_type_enum ('text' | 'file' | 'image')
+  is_read              BOOLEAN DEFAULT false
+  created_at           TIMESTAMPTZ
+
+================================================================================
+6. INTER-SERVICE COMMUNICATION
+================================================================================
+
+Kafka Topics:
+  • "send-mail" — Published by Auth, Job, and Chat services
+                 — Consumed by Utils service (Nodemailer)
+                 — Payload: { to, subject, html }
+
+  Used for:
+    1. Password reset emails (Auth → Utils)
+    2. Application status change emails (Job → Utils)
+    3. Offline chat message notifications (Chat → Utils)
+
+REST Cross-Service Calls:
+  • User Service → Utils Service (/api/upload) for profile pic & resume uploads
+  • Auth Service → Utils Service (/api/upload) for registration profile pic
+  • Job Service  → Utils Service (/api/upload) for company logo uploads
+
+Redis Usage:
+  • Auth Service: Session/token caching
+  • Blog Service: Read-through caching for posts (with write-through invalidation)
+  • Chat Service: Online presence tracking (key: online:<userId>, TTL: 300s)
+
+================================================================================
+7. AUTHENTICATION & AUTHORIZATION
+================================================================================
+
+Flow:
+  1. User registers/logs in via Auth Service
+  2. Server generates JWT containing { id: user_id }
+  3. Token stored in client cookies (js-cookie)
+  4. Subsequent requests send token in "token" cookie
+  5. Each service has isAuth middleware that:
+     • Extracts token from cookies
+     • Verifies with JWT_SEC
+     • Fetches user from DB
+     • Attaches user to request (req.user)
+  6. Role-based guards (isRecruiter middleware) for recruiter-only endpoints
+
+Socket.IO Authentication:
+  • Token sent in socket.handshake.auth.token
+  • Verified in Socket.IO middleware before connection
+
+================================================================================
+8. FRONTEND FEATURES & PAGES
+================================================================================
+
+Authentication:
+  • /login, /register, /forgot-password, /reset-password/:token
+  • JWT stored in cookies, global auth state in AppContext
+
+Landing Pages:
+  • Job Seeker Landing — Hero section, featured jobs, AI career guide, resume analyzer
+  • Recruiter Landing  — Dedicated sections for recruitment features
+
+Job Browsing:
+  • /jobs             — Browse all active job listings
+  • /jobs/[id]        — View job details, apply (if job seeker)
+
+Account Management:
+  • /account          — Profile page with tabs:
+                        - My Companies (recruiters)
+                        - My Blogs (recruiters)
+                        - Applied Jobs (job seekers)
+  • /account/[id]     — View other user's profile
+  • Edit profile, skills, resume, profile picture
+
+Company Pages:
+  • /company          — Company detail pages
+
+Blog:
+  • /blog             — Browse all blog posts
+  • /blog/[slug]      — Read individual blog post
+  • /recruiter/blog   — Create/edit blog posts (Tiptap rich text editor)
+
+Chat:
+  • /chat             — Conversation list + messaging interface
+  • Real-time via Socket.IO (typing indicators, read receipts, online status)
+  • Accessible via "Chat" buttons on application pages
+
+Subscription:
+  • /subscribe        — Pricing page
+  • /payment          — Payment success/confirmation page
+  • Razorpay integration for Indian payments
+
+AI Features:
+  • Career Guide      — Input skills → get AI career path suggestions
+  • Resume Analyzer   — Upload PDF → get ATS score + improvement suggestions
+
+Legal Pages:
+  • /legal            — Terms, privacy policy, etc.
+
+UI Features:
+  • Dark/Light mode toggle (next-themes)
+  • Responsive design (mobile-friendly)
+  • Toast notifications (react-hot-toast)
+  • Loading states and skeletons
+  • shadcn/ui component system (Radix + CVA)
+
+================================================================================
+9. ENVIRONMENT VARIABLES
+================================================================================
+
+Auth Service (.env):
+  PORT=5001
+  DATABASE_URL=<neon_postgres_connection_string>
+  JWT_SECRET=<jwt_secret>
+  REDIS_URL=<redis_url>
+
+Job Service (.env):
+  PORT=5002
+  DATABASE_URL=<neon_postgres_connection_string>
+  JWT_SECRET=<jwt_secret>
+
+User Service (.env):
+  PORT=5003
+  DATABASE_URL=<neon_postgres_connection_string>
+  JWT_SECRET=<jwt_secret>
+
+Payment Service (.env):
+  PORT=5004
+  DATABASE_URL=<neon_postgres_connection_string>
+  JWT_SECRET=<jwt_secret>
+  Razorpay_Key=<razorpay_key>
+  Razorpay_Secret=<razorpay_secret>
+
+Utils Service (.env):
+  PORT=5005
+  CLOUDINARY_CLOUD_NAME=<cloudinary_name>
+  CLOUDINARY_API_KEY=<cloudinary_key>
+  CLOUDINARY_API_SECRET=<cloudinary_secret>
+  API_KEY_GEMINI=<google_ai_api_key>
+  EMAIL_USER=<gmail_address>
+  EMAIL_PASS=<gmail_app_password>
+
+Blog Service (.env):
+  PORT=5006
+  DATABASE_URL=<neon_postgres_connection_string>
+  JWT_SEC=<jwt_secret>
+  REDIS_URL=<redis_url>
+
+Chat Service (.env):
+  PORT=5007
+  DATABASE_URL=<neon_postgres_connection_string>
+  JWT_SEC=<jwt_secret>
+  REDIS_URL=<redis_url>
+  FRONTEND_URL=<frontend_url>
+  KAFKA_BROKER=<kafka_broker_url>
+
+Frontend (.env):
+  NEXT_PUBLIC_AUTH_URL=<auth_service_url>
+  NEXT_PUBLIC_JOB_URL=<job_service_url>
+  NEXT_PUBLIC_USER_URL=<user_service_url>
+  NEXT_PUBLIC_PAYMENT_URL=<payment_service_url>
+  NEXT_PUBLIC_UTILS_URL=<utils_service_url>
+  NEXT_PUBLIC_BLOG_URL=<blog_service_url>
+  NEXT_PUBLIC_CHAT_URL=<chat_service_url>
+  NEXT_PUBLIC_RAZORPAY_KEY=<razorpay_key>
+
+================================================================================
+10. DEPLOYMENT & INFRASTRUCTURE
+================================================================================
+
+  • Each service has its own Dockerfile (Node.js based)
+  • Services run independently on separate ports (5001-5007, 3000 for frontend)
+  • PostgreSQL hosted on Neon (serverless)
+  • Redis hosted on Upstash (serverless) or local Docker
+  • Kafka cluster for async messaging
+  • Cloudinary for media storage (CDN-backed)
+  • Razorpay for payment processing
+  • GitHub Actions for CI/CD (in .github/)
+
+Development:
+  npm run dev    — Starts each service with concurrently (tsc -w + nodemon)
+  npm run build  — Compiles TypeScript to dist/
+  npm start      — Runs compiled JS from dist/
+
+================================================================================
+11. KEY TYPESCRIPT TYPES (frontend/src/type.ts)
+================================================================================
+
+User {
+  user_id, name, email, phone_number,
+  role: "jobseeker" | "recruiter",
+  bio, resume, resume_public_id,
+  profile_pic, profile_pic_public_id,
+  skills: string[], subscription
+}
+
+Job {
+  job_id, title, description, salary, location,
+  job_type: "Full-time" | "Part-time" | "Contract" | "Internship",
+  openings, role,
+  work_location: "On-site" | "Remote" | "Hybrid",
+  company_id, company_name, company_logo,
+  posted_by_recuriter_id, created_at, is_active
+}
+
+Company {
+  company_id, name, description, website,
+  logo, logo_public_id, recruiter_id, created_at,
+  jobs?: Job[]
+}
+
+Application {
+  application_id, job_id, applicant_id, applicant_email,
+  status: "Submitted" | "Rejected" | "Hired",
+  resume, applied_at, subscribed,
+  job_title, job_salary, job_location
+}
+
+Conversation {
+  conversation_id, application_id, job_id,
+  applicant_id, recruiter_id,
+  last_message_at, created_at,
+  job_title, company_name, company_logo,
+  applicant_name, applicant_pic,
+  recruiter_name, recruiter_pic,
+  unread_count, last_message
+}
+
+Message {
+  message_id, conversation_id, sender_id,
+  content, message_type: "text" | "file" | "image",
+  is_read, created_at,
+  sender_name, sender_pic
+}
+
+CareerGuideResponse { summary, jobOptions[], skillsToLearn[], learningApproach }
+ResumeAnalysisResponse { atsScore, scoreBreakdown, suggestions[], strengths[], summary }
+
+================================================================================
+12. COMPLETE API REFERENCE
+================================================================================
+
+AUTH SERVICE (/api/auth)
+  POST /register           — Body: FormData (name, email, password, phone_number, role, file)
+  POST /login              — Body: { email, password } → { token, user }
+  POST /forgot             — Body: { email } → sends reset email
+  POST /reset/:token       — Body: { password } → resets password
+
+JOB SERVICE (/api/job)
+  POST   /company/new              — FormData (name, description, website, file)  [Auth]
+  DELETE /company/:companyId       — Delete company                               [Auth]
+  GET    /company/all              — List recruiter's companies                   [Auth]
+  GET    /company/:id              — Company details                              [Public]
+  POST   /new                      — Body: { title, description, ... }           [Auth]
+  PUT    /:jobId                   — Body: { field updates }                     [Auth]
+  GET    /all                      — All active jobs                              [Public]
+  GET    /:jobId                   — Single job                                   [Public]
+  GET    /application/:jobId       — Applications for a job                      [Auth]
+  PUT    /application/update/:id   — Body: { status }                            [Auth]
+
+USER SERVICE (/api/user)
+  GET  /me                 — Current user profile                                [Auth]
+  GET  /:userId            — User profile by ID                                  [Auth]
+  PUT  /update/profile     — Body: { name, phone_number, bio }                  [Auth]
+  PUT  /update/pic         — FormData (file)                                    [Auth]
+  PUT  /update/resume      — FormData (file)                                    [Auth]
+  POST /skill/add          — Body: { skill }                                    [Auth]
+  PUT  /skill/delete       — Body: { skill }                                    [Auth]
+  POST /apply/job          — Body: { job_id }                                   [Auth]
+  GET  /application/all    — Current user's applications                         [Auth]
+
+PAYMENT SERVICE (/api/payment)
+  POST /checkout           — Body: { plan details }                             [Auth]
+  POST /verify             — Body: { razorpay_order_id, razorpay_payment_id,    [Auth]
+                                      razorpay_signature }
+
+UTILS SERVICE (/api)
+  POST /upload             — Body: { buffer, public_id? }
+  POST /career             — Body: { skills: string }
+  POST /resume-analyser    — Body: { pdfBase64: string }
+
+BLOG SERVICE (/api/blog)
+  GET    /                 — All posts (paginated)                               [Public]
+  GET    /:slug            — Single post by slug                                 [Public]
+  POST   /                 — Body: { title, cover_image, tags, sections }       [Auth/Recruiter]
+  GET    /user/my-posts    — Current recruiter's posts                           [Auth/Recruiter]
+  PUT    /:id              — Body: { title, cover_image, tags, sections }       [Auth/Recruiter]
+  DELETE /:id              — Delete post                                          [Auth/Recruiter]
+
+CHAT SERVICE (/api/chat)
+  GET  /conversations                          — List conversations              [Auth]
+  GET  /conversations/:conversationId/messages — Messages in conversation        [Auth]
+  POST /conversations                          — Create/get conversation         [Auth]
+  PUT  /messages/read/:conversationId          — Mark as read                   [Auth]
+  GET  /unread-count                           — Unread message count            [Auth]
+
+================================================================================
+END OF CONTEXT
+================================================================================

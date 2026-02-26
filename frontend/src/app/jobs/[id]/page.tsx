@@ -20,6 +20,7 @@ import React, { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import JobAtsAnalyzer from "@/components/job-ats-analyzer";
 
 const chat_service =
   process.env.NEXT_PUBLIC_CHAT_SERVICE || "http://localhost:5007";
@@ -256,6 +257,11 @@ const JobPage = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* ATS Analyzer (Jobseeker only) */}
+                  {user && user.role === "jobseeker" && (
+                    <JobAtsAnalyzer jobDescription={job.description} />
+                  )}
                 </div>
               </Card>
             </div>
