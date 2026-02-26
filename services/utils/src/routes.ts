@@ -1,5 +1,11 @@
-import express, { json } from "express";
+import express from "express";
 import cloudinary from "cloudinary";
+import { PDFParse } from "pdf-parse";
+
+import Groq from "groq-sdk";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const router = express.Router();
 
@@ -24,13 +30,32 @@ router.post("/upload", async (req, res) => {
   }
 });
 
-import { GoogleGenAI } from "@google/genai";
-import dotenv from "dotenv";
+// ── AI Provider ──────────────────────────────────────────────────────────────
+// Gemini (commented out — replaced by Groq)
+// import { GoogleGenAI } from "@google/genai";
+// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY_GEMINI });
 
-dotenv.config();
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY_GEMINI });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// ── Helper: call Groq and parse JSON response ────────────────────────────────
+async function askGroq(prompt: string): Promise<string> {
+  const completion = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    temperature: 0.7,
+  });
+
+  const text = completion.choices[0]?.message?.content ?? "";
+  return text;
+}
+
+// ── /career ──────────────────────────────────────────────────────────────────
 router.post("/career", async (req, res) => {
   try {
     const { skills } = req.body;
@@ -41,66 +66,62 @@ router.post("/career", async (req, res) => {
       });
     }
 
-    const prompt = ` 
-Based on the following skills: ${skills}. 
+    const prompt = `
+Based on the following skills: ${skills}.
  
-Please act as a career advisor and generate a career path suggestion. 
-Your entire response must be in a valid JSON format. Do not include any text or markdown 
-formatting outside of the JSON structure. 
+Please act as a career advisor and generate a career path suggestion.
+Your entire response must be in a valid JSON format. Do not include any text or markdown
+formatting outside of the JSON structure.
  
-The JSON object should have the following structure: 
-{ 
- "summary": "A brief, encouraging summary of the user's skill set and their general job 
-title.", 
- "jobOptions": [ 
- { 
-"title": "The name of the job role.", 
-"responsibilities": "A description of what the user would do in this role.", 
-"why": "An explanation of why this role is a good fit for their skills." 
- } 
- ], 
- "skillsToLearn": [ 
- { 
-"category": "A general category for skill improvement (e.g., 'Deepen Your Existing Stack 
-Mastery', 'DevOps & Cloud').", 
-"skills": [ 
- { 
- "title": "The name of the skill to learn.", 
- "why": "Why learning this skill is important.", 
- "how": "Specific examples of how to learn or apply this skill." 
- } 
-] 
- } 
- ], 
- "learningApproach": { 
-"title": "How to Approach Learning", 
-"points": ["A bullet point list of actionable advice for learning."] 
- } 
-} 
- `;
+The JSON object should have the following structure:
+{
+ "summary": "A brief, encouraging summary of the user's skill set and their general job title.",
+ "jobOptions": [
+ {
+   "title": "The name of the job role.",
+   "responsibilities": "A description of what the user would do in this role.",
+   "why": "An explanation of why this role is a good fit for their skills."
+ }
+ ],
+ "skillsToLearn": [
+ {
+   "category": "A general category for skill improvement (e.g., 'Deepen Your Existing Stack Mastery', 'DevOps & Cloud').",
+   "skills": [
+     {
+       "title": "The name of the skill to learn.",
+       "why": "Why learning this skill is important.",
+       "how": "Specific examples of how to learn or apply this skill."
+     }
+   ]
+ }
+ ],
+ "learningApproach": {
+   "title": "How to Approach Learning",
+   "points": ["A bullet point list of actionable advice for learning."]
+ }
+}
+  `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
+    // Gemini version (commented out):
+    // const response = await ai.models.generateContent({
+    //   model: "gemini-2.5-flash",
+    //   contents: prompt,
+    // });
+    // const rawText = response.text?.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    const rawText = (await askGroq(prompt))
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
     let jsonResponse;
-
     try {
-      const rawText = response.text
-        ?.replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-
-      if (!rawText) {
-        throw new Error("Ai did not return a valid text response.");
-      }
-
+      if (!rawText) throw new Error("AI did not return a valid text response.");
       jsonResponse = JSON.parse(rawText);
     } catch (error) {
       return res.status(500).json({
-        message: "Ai returned response that was not valid JSON",
-        rawResponse: response.text,
+        message: "AI returned a response that was not valid JSON",
+        rawResponse: rawText,
       });
     }
 
@@ -112,6 +133,10 @@ Mastery', 'DevOps & Cloud').",
   }
 });
 
+// ── /resume-analyser ─────────────────────────────────────────────────────────
+// NOTE: Groq is a text-only API (no native PDF/binary input like Gemini's inlineData).
+// The PDF base64 is decoded to raw text (best-effort extraction) before being passed
+// to the model. For a production setup, use a proper PDF text extractor (e.g. pdf-parse).
 router.post("/resume-analyser", async (req, res) => {
   try {
     const { pdfBase64 } = req.body;
@@ -120,92 +145,210 @@ router.post("/resume-analyser", async (req, res) => {
       return res.status(400).json({ message: "PDF data is required" });
     }
 
-    const prompt = ` 
-You are an expert ATS (Applicant Tracking System) analyzer. Analyze the following resume 
-and provide: 
-1. An ATS compatibility score (0-100) 
-2. Detailed suggestions to improve the resume for better ATS performance 
- 
-Your entire response must be in valid JSON format. Do not include any text or markdown 
-formatting outside of the JSON structure. 
- 
-The JSON object should have the following structure: 
-{ 
-  "atsScore": 85, 
-  "scoreBreakdown": { 
-    "formatting": { 
-      "score": 90, 
-      "feedback": "Brief feedback on formatting" 
-    }, 
-    "keywords": { 
-      "score": 80, 
-      "feedback": "Brief feedback on keyword usage" 
-    }, 
-    "structure": { 
-      "score": 85, 
-      "feedback": "Brief feedback on resume structure" 
-    }, 
-    "readability": { 
-      "score": 88, 
-      "feedback": "Brief feedback on readability" 
-    } 
-  }, 
-  "suggestions": [ 
-    { 
-      "category": "Category name (e.g., 'Formatting', 'Content', 'Keywords', 
-'Structure')", 
-      "issue": "Description of the issue found", 
-      "recommendation": "Specific actionable recommendation to fix it", 
-      "priority": "high/medium/low" 
-    } 
-  ], 
-  "strengths": [ 
-    "List of things the resume does well for ATS" 
-  ], 
-  "summary": "A brief 2-3 sentence summary of the overall ATS performance" 
-} 
- 
-Focus on: - File format and structure compatibility - Proper use of standard section headings - Keyword optimization - Formatting issues (tables, columns, graphics, special characters) - Contact information placement - Date formatting - Use of action verbs and quantifiable achievements - Section organization and flow 
-`;
+    // Decode base64 → raw bytes
+    const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
+    const pdfBuffer = Buffer.from(base64Data, "base64");
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: prompt,
-            },
-            {
-              inlineData: {
-                mimeType: "application/pdf",
-                data: pdfBase64.replace(/^data:application\/pdf;base64,/, ""),
-              },
-            },
-          ],
-        },
-      ],
-    });
+    // Extract text from the PDF using pdf-parse
+    const parser = new PDFParse({ data: pdfBuffer });
+    const pdfData = await parser.getText();
+    await parser.destroy();
+    const extractedText = pdfData.text.substring(0, 6000); // stay within token limits
+
+    const prompt = `
+You are an expert ATS (Applicant Tracking System) analyzer. Analyze the following resume text
+and provide:
+1. An ATS compatibility score (0-100)
+2. Detailed suggestions to improve the resume for better ATS performance
+
+Resume text:
+"""
+${extractedText}
+"""
+
+Your entire response must be in valid JSON format. Do not include any text or markdown
+formatting outside of the JSON structure.
+
+The JSON object should have the following structure:
+{
+  "atsScore": 85,
+  "scoreBreakdown": {
+    "formatting": {
+      "score": 90,
+      "feedback": "Brief feedback on formatting"
+    },
+    "keywords": {
+      "score": 80,
+      "feedback": "Brief feedback on keyword usage"
+    },
+    "structure": {
+      "score": 85,
+      "feedback": "Brief feedback on resume structure"
+    },
+    "readability": {
+      "score": 88,
+      "feedback": "Brief feedback on readability"
+    }
+  },
+  "suggestions": [
+    {
+      "category": "Category name (e.g., 'Formatting', 'Content', 'Keywords', 'Structure')",
+      "issue": "Description of the issue found",
+      "recommendation": "Specific actionable recommendation to fix it",
+      "priority": "high/medium/low"
+    }
+  ],
+  "strengths": [
+    "List of things the resume does well for ATS"
+  ],
+  "summary": "A brief 2-3 sentence summary of the overall ATS performance"
+}
+
+Focus on: File format and structure compatibility, proper use of standard section headings,
+keyword optimization, formatting issues (tables, columns, graphics, special characters),
+contact information placement, date formatting, use of action verbs and quantifiable
+achievements, section organization and flow.
+    `;
+
+    // Gemini version (commented out — used native PDF inlineData which Groq doesn't support):
+    // const response = await ai.models.generateContent({
+    //   model: "gemini-2.5-flash",
+    //   contents: [
+    //     {
+    //       role: "user",
+    //       parts: [
+    //         { text: prompt },
+    //         {
+    //           inlineData: {
+    //             mimeType: "application/pdf",
+    //             data: pdfBase64.replace(/^data:application\/pdf;base64,/, ""),
+    //           },
+    //         },
+    //       ],
+    //     },
+    //   ],
+    // });
+    // const rawText = response.text?.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    const rawText = (await askGroq(prompt))
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
     let jsonResponse;
-
     try {
-      const rawText = response.text
-        ?.replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-
-      if (!rawText) {
-        throw new Error("Ai did not return a valid text response.");
-      }
-
+      if (!rawText) throw new Error("AI did not return a valid text response.");
       jsonResponse = JSON.parse(rawText);
     } catch (error) {
       return res.status(500).json({
-        message: "Ai returned response that was not valid JSON",
-        rawResponse: response.text,
+        message: "AI returned a response that was not valid JSON",
+        rawResponse: rawText,
       });
+    }
+
+    res.json(jsonResponse);
+  } catch (error: any) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+
+// ── /ats-job-match ─────────────────────────────────────────────────────────────
+router.post("/ats-job-match", async (req, res) => {
+  try {
+    const { pdfBase64, jobDescription } = req.body;
+
+    if (!pdfBase64 || !jobDescription) {
+      return res.status(400).json({ message: "PDF data and Job Description are required" });
+    }
+
+    // Decode base64 → raw bytes
+    const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
+    const pdfBuffer = Buffer.from(base64Data, "base64");
+
+    // Extract text from the PDF using pdf-parse
+    const parser = new PDFParse({ data: pdfBuffer });
+    const pdfData = await parser.getText();
+    await parser.destroy();
+    const extractedText = pdfData.text.substring(0, 6000); // stay within token limits
+
+    const prompt = `
+You are an expert ATS (Applicant Tracking System) analyzer and Recruiter. Analyze the following resume text against the provided Job Description and provide:
+1. An ATS match score (0-100) indicating how well the resume matches the job description.
+2. Detailed suggestions to improve the resume for this specific job.
+
+Job Description:
+"""
+${jobDescription}
+"""
+
+Resume text:
+"""
+${extractedText}
+"""
+
+Your entire response must be in valid JSON format. Do not include any text or markdown formatting outside of the JSON structure.
+
+The JSON object should have the following structure:
+{
+  "atsScore": 85,
+  "scoreBreakdown": {
+    "formatting": {
+      "score": 90,
+      "feedback": "Brief feedback on formatting"
+    },
+    "keywords": {
+      "score": 80,
+      "feedback": "Brief feedback on keyword usage compared to job description"
+    },
+    "structure": {
+      "score": 85,
+      "feedback": "Brief feedback on resume structure"
+    },
+    "readability": {
+      "score": 88,
+      "feedback": "Brief feedback on readability"
+    }
+  },
+  "suggestions": [
+    {
+      "category": "Category name (e.g., 'Keywords', 'Experience', 'Projects')",
+      "issue": "Description of the gap between resume and job description",
+      "recommendation": "Specific actionable recommendation to fix it",
+      "priority": "high/medium/low"
+    }
+  ],
+  "strengths": [
+    "List of strong matches between the resume and the job requirements"
+  ],
+  "summary": "A brief 2-3 sentence summary of how well the candidate fits the role"
+}
+
+Focus on: Identifying missing keywords from the job description, highlighting matching skills, evaluating if the experience level aligns, and providing actionable ways to tailor the resume for this specific role.
+    `;
+
+    const rawText = (await askGroq(prompt))
+      .replace(/<|im_start|>system\n.*?\n/gs, '')
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    let jsonResponse;
+    try {
+      if (!rawText) throw new Error("AI did not return a valid text response.");
+      jsonResponse = JSON.parse(rawText);
+    } catch (error) {
+      // fallback cleanup of control characters if JSON parse fails initially
+      try {
+        const cleanedText = rawText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+        jsonResponse = JSON.parse(cleanedText);
+      } catch (innerError) {
+        return res.status(500).json({
+          message: "AI returned a response that was not valid JSON",
+          rawResponse: rawText,
+        });
+      }
     }
 
     res.json(jsonResponse);

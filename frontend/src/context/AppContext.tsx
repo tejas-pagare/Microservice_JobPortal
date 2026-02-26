@@ -12,6 +12,7 @@ export const user_service = process.env.NEXT_PUBLIC_USER_SERVICE || "http://loca
 export const job_service = process.env.NEXT_PUBLIC_JOB_SERVICE || "http://localhost:5003";
 export const payment_service = process.env.NEXT_PUBLIC_PAYMENT_SERVICE || "http://localhost:5004";
 
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {

@@ -77,6 +77,7 @@ run_service "PAYMENT"   "$ROOT_DIR/services/payment"   "$RED"
 run_service "BLOG"      "$ROOT_DIR/services/blog"      "$WHITE"
 run_service "CHAT"      "$ROOT_DIR/services/chat"      "$CYAN"
 
+
 echo ""
 echo -e "${GREEN}✔  All services launched. Press Ctrl+C to stop.${NC}"
 echo ""

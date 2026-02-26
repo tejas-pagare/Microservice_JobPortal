@@ -174,4 +174,5 @@ export interface Message {
   created_at: string;
   sender_name: string;
   sender_pic: string | null;
+  _isOptimistic?: boolean; // true for messages added optimistically before server confirmation
 }

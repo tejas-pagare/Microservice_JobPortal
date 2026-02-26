@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useAppData } from "@/context/AppContext";
-import { Conversation } from "@/type";
+import { useSocket } from "@/context/SocketContext";
+import { Conversation, Message } from "@/type";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Link from "next/link";
@@ -14,12 +15,14 @@ const chat_service =
 
 const ChatPage = () => {
     const { user, isAuth, loading } = useAppData();
+    const { socket, isConnected } = useSocket();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loadingConversations, setLoadingConversations] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
 
     const token = Cookies.get("token");
 
+    // ── Initial fetch ──
     useEffect(() => {
         if (!isAuth || !token) return;
 
@@ -41,6 +44,44 @@ const ChatPage = () => {
 
         fetchConversations();
     }, [isAuth, token]);
+
+    // ── Real-time updates ──
+    // When a new message arrives, update the matching conversation's unread
+    // count, last message preview, and timestamp — without a full reload.
+    useEffect(() => {
+        if (!socket || !isConnected) return;
+
+        const handleNewMessageNotification = (data: {
+            conversationId: number;
+            message: Message;
+        }) => {
+            setConversations((prev) => {
+                // Move the updated conversation to the top and bump its unread count
+                const updated = prev.map((conv) => {
+                    if (conv.conversation_id !== data.conversationId) return conv;
+                    return {
+                        ...conv,
+                        unread_count: conv.unread_count + 1,
+                        last_message: data.message.content,
+                        last_message_at: data.message.created_at,
+                    };
+                });
+
+                // Sort so conversations with newest messages appear first
+                return [...updated].sort(
+                    (a, b) =>
+                        new Date(b.last_message_at).getTime() -
+                        new Date(a.last_message_at).getTime()
+                );
+            });
+        };
+
+        socket.on("new-message-notification", handleNewMessageNotification);
+
+        return () => {
+            socket.off("new-message-notification", handleNewMessageNotification);
+        };
+    }, [socket, isConnected]);
 
     const formatTime = (dateStr: string) => {
         const date = new Date(dateStr);

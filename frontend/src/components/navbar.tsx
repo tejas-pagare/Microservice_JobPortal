@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import {
   BookOpen,
   Briefcase,
+  Globe,
   Home,
   Info,
   LogOut,
@@ -126,6 +127,18 @@ const NavBar = () => {
                             <Briefcase size={15} /> Jobs
                           </Button>
                         </Link>
+
+                        {user?.role === "jobseeker" && (
+                          <Link href={"/discover"}>
+                            <Button
+                              className="w-full justify-start gap-2"
+                              variant={"ghost"}
+                              size="sm"
+                            >
+                              <Globe size={15} /> Discover Jobs
+                            </Button>
+                          </Link>
+                        )}
 
                         <Link href={"/blog"}>
                           <Button
@@ -258,6 +271,17 @@ const NavBar = () => {
               <Briefcase size={18} /> Jobs
             </Button>
           </Link>
+
+          {isAuth && user?.role === "jobseeker" && (
+            <Link href={"/discover"} onClick={toggleMenu}>
+              <Button
+                variant={"ghost"}
+                className="w-full justify-start gap-3 h-11"
+              >
+                <Globe size={18} /> Discover Jobs
+              </Button>
+            </Link>
+          )}
 
           <Link href={"/blog"} onClick={toggleMenu}>
             <Button
