@@ -257,15 +257,31 @@ achievements, section organization and flow.
 // ── /ats-job-match ─────────────────────────────────────────────────────────────
 router.post("/ats-job-match", async (req, res) => {
   try {
-    const { pdfBase64, jobDescription } = req.body;
+    const { pdfBase64, resumeUrl, jobDescription } = req.body;
 
-    if (!pdfBase64 || !jobDescription) {
-      return res.status(400).json({ message: "PDF data and Job Description are required" });
+    if (!jobDescription) {
+      return res.status(400).json({ message: "Job Description is required" });
     }
 
-    // Decode base64 → raw bytes
-    const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
-    const pdfBuffer = Buffer.from(base64Data, "base64");
+    if (!pdfBase64 && !resumeUrl) {
+      return res.status(400).json({ message: "Either PDF data or resume URL is required" });
+    }
+
+    let pdfBuffer: Buffer;
+
+    if (pdfBase64) {
+      // Decode base64 → raw bytes
+      const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
+      pdfBuffer = Buffer.from(base64Data, "base64");
+    } else {
+      // Fetch from URL
+      const response = await fetch(resumeUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch resume from URL: ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      pdfBuffer = Buffer.from(arrayBuffer);
+    }
 
     // Extract text from the PDF using pdf-parse
     const parser = new PDFParse({ data: pdfBuffer });
